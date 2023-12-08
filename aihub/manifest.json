@@ -1,5 +1,4 @@
-{
-  'name': 'Ai-Hub',
+{'name': 'Ai-Hub',
   'short_name': 'AiHub',
   'icons': [{
       'src': '/favicon.png',
