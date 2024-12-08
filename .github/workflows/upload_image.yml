@@ -83,12 +83,3 @@ jobs:
 
       - name: Возврат URL
         run: echo "${{ steps.set_output.outputs.image_url }}"
-
-      - name: Планирование удаления (если не fixed)
-        if: github.event.inputs.fixed != 'true'
-        uses: irongut/actions-schedule@v1 # <-- Исправлено название action
-        with:
-          workflow: delete_image.yml
-          workflow-repository: ${{ github.repository }}
-          args: ${{ steps.upload_path.outputs.path }}/${{ steps.check_existing.outputs.final_filename }}
-          datetime: 'in 2 days'
