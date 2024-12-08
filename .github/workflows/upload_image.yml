@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Проверка репозитория
-        uses: actions/checkout@v3
+        uses: Igroshka/-
 
       - name: Установка зависимостей
         run: |
