@@ -18,10 +18,20 @@ jobs:
       - name: Проверка репозитория
         uses: actions/checkout@v3
 
+      - name: Кеширование зависимостей
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/apt
+          key: ${{ runner.os }}-apt-${{ hashFiles('**/apt-get.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-apt-
+
       - name: Установка зависимостей
+        if: steps.cache.outputs.cache-hit != 'true' # Устанавливаем только если кеша нет
         run: |
           sudo apt-get update
           sudo apt-get install -y coreutils
+          sudo apt-get clean # Очистка кеша apt для экономии места
 
       - name: Определение типа изображения и загрузка/декодирование
         id: determine_image_type
