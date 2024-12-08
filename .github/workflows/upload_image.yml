@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Проверка репозитория
-        uses: Igroshka/-
+        uses: actions/checkout@v3
 
       - name: Установка зависимостей
         run: |
@@ -85,7 +85,7 @@ jobs:
 
       - name: Планирование удаления (если не fixed)
         if: github.event.inputs.fixed != 'true'
-        uses: peter-evans/schedule@v2.12.0
+        uses: Igroshka/-@v2.12.0
         with:
           schedule: 48 hours
           workflow: delete_image.yml
