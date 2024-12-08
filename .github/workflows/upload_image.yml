@@ -21,7 +21,7 @@ jobs:
       - name: Установка зависимостей
         run: |
           sudo apt-get update
-          sudo apt-get install -y coreutils base64
+          sudo apt-get install -y coreutils
 
       - name: Определение типа изображения и загрузка/декодирование
         id: determine_image_type
