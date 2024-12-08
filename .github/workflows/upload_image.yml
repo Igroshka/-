@@ -21,7 +21,7 @@ jobs:
       - name: Установка зависимостей
         run: |
           sudo apt-get update
-          sudo apt-get install -y coreutils base64 jq
+          sudo apt-get install -y coreutils base64
 
       - name: Определение типа изображения и загрузка/декодирование
         id: determine_image_type
@@ -33,7 +33,7 @@ jobs:
             echo "::set-output name=image_type::base64"
             echo "${{ github.event.inputs.image_data }}" | base64 -d > image
           else
-            echo "::set-output name=image_type::bytes"  # Менее надежно, предполагает, что это байты
+            echo "::set-output name=image_type::bytes"
             echo "${{ github.event.inputs.image_data }}" > image
           fi
 
@@ -41,7 +41,8 @@ jobs:
         id: generate_filename
         run: |
           filename=$(date +%Y.%m.%d_%H:%M:%S)_$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 10 | head -n 1)
-          echo "::set-output name=filename::$filename.$(file --mime-type image | cut -d'/' -f2)"
+          ext=$(file --mime-type image | cut -d'/' -f2)
+          echo "::set-output name=filename::$filename.$ext"
 
       - name: Проверка существующего файла и переименование, если нужно
         id: check_existing
@@ -67,7 +68,7 @@ jobs:
             echo "::set-output name=path::uploads"
           fi
           mkdir -p ${{ steps.upload_path.outputs.path }}
-          mv uploads/${{ steps.check_existing.outputs.final_filename }} ${{ steps.upload_path.outputs.path }}/${{ steps.check_existing.outputs.final_filename }}
+          mv "${{ steps.upload_path.outputs.path }}/image" "${{ steps.upload_path.outputs.path }}/${{ steps.check_existing.outputs.final_filename }}"
 
       - name: Коммит и пуш изменений
         uses: stefanzweifel/git-auto-commit-action@v4
@@ -85,10 +86,9 @@ jobs:
 
       - name: Планирование удаления (если не fixed)
         if: github.event.inputs.fixed != 'true'
-        uses: Igroshka/-@v2.12.0
+        uses: Droplr/actions-schedule@v2.1.0
         with:
-          schedule: 48 hours
           workflow: delete_image.yml
-          workflow-repository: self
+          workflow-repository: ${{ github.repository }}
           args: ${{ steps.upload_path.outputs.path }}/${{ steps.check_existing.outputs.final_filename }}
-          
+          datetime: '+2d'
