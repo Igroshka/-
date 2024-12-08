@@ -1,0 +1,90 @@
+name: Upload Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_data:
+        description: 'Ссылка на изображение, base64 строка или байты'
+        required: true
+      fixed:
+        description: 'Установите "true", чтобы сохранить изображение навсегда'
+        required: false
+        default: 'false'
+
+jobs:
+  upload_image:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Проверка репозитория
+        uses: actions/checkout@v3
+
+      - name: Установка зависимостей
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y coreutils base64 jq
+
+      - name: Определение типа изображения и загрузка/декодирование
+        id: determine_image_type
+        run: |
+          if [[ "${{ github.event.inputs.image_data }}" =~ ^http.* ]]; then
+            echo "::set-output name=image_type::url"
+            wget "${{ github.event.inputs.image_data }}" -O image
+          elif [[ "${{ github.event.inputs.image_data }}" =~ ^data:image.* ]]; then
+            echo "::set-output name=image_type::base64"
+            echo "${{ github.event.inputs.image_data }}" | base64 -d > image
+          else
+            echo "::set-output name=image_type::bytes"  # Менее надежно, предполагает, что это байты
+            echo "${{ github.event.inputs.image_data }}" > image
+          fi
+
+      - name: Генерация имени файла
+        id: generate_filename
+        run: |
+          filename=$(date +%Y.%m.%d_%H:%M:%S)_$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 10 | head -n 1)
+          echo "::set-output name=filename::$filename.$(file --mime-type image | cut -d'/' -f2)"
+
+      - name: Проверка существующего файла и переименование, если нужно
+        id: check_existing
+        run: |
+          i=1
+          while [ -f "uploads/${{ steps.generate_filename.outputs.filename }}" ]; do
+            filename="${{ steps.generate_filename.outputs.filename%.* }}($i).${{ steps.generate_filename.outputs.filename##*. }}"
+            i=$((i+1))
+          done
+          echo "::set-output name=final_filename::$filename"
+          mv image uploads/$filename
+
+      - name: Определение пути загрузки
+        id: upload_path
+        run: |
+          if [[ "${{ github.event.inputs.fixed }}" == "true" ]]; then
+            echo "::set-output name=path::fixed"
+          else
+            echo "::set-output name=path::uploads"
+          fi
+          mkdir -p ${{ steps.upload_path.outputs.path }}
+          mv uploads/${{ steps.check_existing.outputs.final_filename }} ${{ steps.upload_path.outputs.path }}/${{ steps.check_existing.outputs.final_filename }}
+
+      - name: Коммит и пуш изменений
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: "Загрузка изображения ${{ steps.check_existing.outputs.final_filename }}"
+          file_pattern: ${{ steps.upload_path.outputs.path }}/*
+
+      - name: Установка выходной переменной
+        id: set_output
+        run: |
+          echo "::set-output name=image_url::https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref }}/${{ steps.upload_path.outputs.path }}/${{ steps.check_existing.outputs.final_filename }}"
+
+      - name: Возврат URL
+        run: echo "${{ steps.set_output.outputs.image_url }}"
+
+      - name: Планирование удаления (если не fixed)
+        if: github.event.inputs.fixed != 'true'
+        uses: peter-evans/schedule@v2.12.0
+        with:
+          schedule: 48 hours
+          workflow: delete_image.yml
+          workflow-repository: self
+          args: ${{ steps.upload_path.outputs.path }}/${{ steps.check_existing.outputs.final_filename }}
+          
