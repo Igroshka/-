@@ -40,36 +40,43 @@ jobs:
       - name: Генерация имени файла
         id: generate_filename
         run: |
-          filename=$(date +%Y.%m.%d_%H:%M:%S)_$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 10 | head -n 1)
-          ext=$(file --mime-type image | cut -d'/' -f2)
+          filename=$(date +%Y.%m.%d_%H:%M:%S)_$(openssl rand -base64 10 | tr -dc 'a-zA-Z0-9' | head -c 10) # Оптимизировано
+          # Упрощенное определение расширения (менее надежно):
+          case $(head -c 4 image | od -An -tx1 | tr -d ' ') in
+            89504e47) ext="png";;
+            ffd8ffe*) ext="jpg" ;; # Поддержка jpeg и jpg
+            47494638) ext="gif";;
+            *        ) ext="unknown";; # Обработка неизвестных типов
+          esac
           echo "::set-output name=filename::$filename.$ext"
 
+      - name: Определение пути загрузки
+        id: upload_path
+        run: |
+          if [[ "${{ github.event.inputs.fixed }}" == "true" ]]; then
+            path="fixed"
+          else
+            path="uploads"
+          fi
+          echo "::set-output name=path::$path"
+          mkdir -p "$path"
+          UPLOAD_PATH="$path" >> $GITHUB_ENV # Сохраняем путь в переменную окружения
+          
       - name: Проверка существующего файла и переименование, если нужно
         id: check_existing
         shell: bash
         run: |
           i=1
           filename="${{ steps.generate_filename.outputs.filename }}"
-          while [ -f "${{ steps.upload_path.outputs.path }}/$filename" ]; do
+          while [ -f "$UPLOAD_PATH/$filename" ]; do  # Используем $UPLOAD_PATH
             filename_without_ext=$(echo "$filename" | cut -d '.' -f 1)
             ext=$(echo "$filename" | cut -d '.' -f 2-)
             filename="${filename_without_ext}($i).$ext"
             i=$((i+1))
           done
           echo "::set-output name=final_filename::$filename"
-          mv image "${{ steps.upload_path.outputs.path }}/$filename"
-
-      - name: Определение пути загрузки
-        id: upload_path
-        run: |
-          if [[ "${{ github.event.inputs.fixed }}" == "true" ]]; then
-            echo "::set-output name=path::fixed"
-          else
-            echo "::set-output name=path::uploads"
-          fi
-          mkdir -p ${{ steps.upload_path.outputs.path }}
-          mv "${{ steps.upload_path.outputs.path }}/image" "${{ steps.upload_path.outputs.path }}/${{ steps.check_existing.outputs.final_filename }}"
-
+          mv image "$UPLOAD_PATH/$filename" # Используем $UPLOAD_PATH
+      
       - name: Коммит и пуш изменений
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
