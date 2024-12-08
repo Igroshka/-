@@ -66,27 +66,40 @@ jobs:
         id: check_existing
         shell: bash
         run: |
+          if [[ "${{ github.event.inputs.fixed }}" == "true" ]]; then
+            UPLOAD_PATH="fixed" # Устанавливаем UPLOAD_PATH здесь
+          else
+            UPLOAD_PATH="uploads" # Устанавливаем UPLOAD_PATH здесь
+          fi
+          mkdir -p "$UPLOAD_PATH"
           i=1
           filename="${{ steps.generate_filename.outputs.filename }}"
-          while [ -f "$UPLOAD_PATH/$filename" ]; do  # Используем $UPLOAD_PATH
+          while [ -f "$UPLOAD_PATH/$filename" ]; do
             filename_without_ext=$(echo "$filename" | cut -d '.' -f 1)
             ext=$(echo "$filename" | cut -d '.' -f 2-)
             filename="${filename_without_ext}($i).$ext"
             i=$((i+1))
           done
-          echo "::set-output name=final_filename::$filename"
-          mv image "$UPLOAD_PATH/$filename" # Используем $UPLOAD_PATH
+          echo "final_filename=$filename" >> $GITHUB_OUTPUT #  Используем GITHUB_OUTPUT
+          mv image "$UPLOAD_PATH/$filename"
       
       - name: Коммит и пуш изменений
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
           commit_message: "Загрузка изображения ${{ steps.check_existing.outputs.final_filename }}"
-          file_pattern: ${{ steps.upload_path.outputs.path }}/*
+          file_pattern: "${{ steps.upload_path.outputs.path }}/*" # Кавычки для обработки пробелов
+
 
       - name: Установка выходной переменной
         id: set_output
         run: |
-          echo "::set-output name=image_url::https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref }}/${{ steps.upload_path.outputs.path }}/${{ steps.check_existing.outputs.final_filename }}"
-
+           if [[ "${{ github.event.inputs.fixed }}" == "true" ]]; then
+            UPLOAD_PATH="fixed" # Устанавливаем UPLOAD_PATH здесь
+           else
+            UPLOAD_PATH="uploads" # Устанавливаем UPLOAD_PATH здесь
+           fi
+           echo "image_url=https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref }}/$UPLOAD_PATH/${{ steps.check_existing.outputs.final_filename }}" >> $GITHUB_OUTPUT  # Используем GITHUB_OUTPUT
+          
+      
       - name: Возврат URL
         run: echo "${{ steps.set_output.outputs.image_url }}"
