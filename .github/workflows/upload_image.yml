@@ -45,14 +45,18 @@ jobs:
 
       - name: Проверка существующего файла и переименование, если нужно
         id: check_existing
+        shell: bash
         run: |
           i=1
-          while [ -f "uploads/${{ steps.generate_filename.outputs.filename }}" ]; do
-            filename="${{ steps.generate_filename.outputs.filename%.* }}($i).${{ steps.generate_filename.outputs.filename##*. }}"
+          filename="${{ steps.generate_filename.outputs.filename }}"
+          while [ -f "${{ steps.upload_path.outputs.path }}/$filename" ]; do
+            filename_without_ext=$(echo "$filename" | cut -d '.' -f 1)
+            ext=$(echo "$filename" | cut -d '.' -f 2-)
+            filename="${filename_without_ext}($i).$ext"
             i=$((i+1))
           done
           echo "::set-output name=final_filename::$filename"
-          mv image uploads/$filename
+          mv image "${{ steps.upload_path.outputs.path }}/$filename"
 
       - name: Определение пути загрузки
         id: upload_path
