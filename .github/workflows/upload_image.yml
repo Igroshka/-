@@ -86,9 +86,9 @@ jobs:
 
       - name: Планирование удаления (если не fixed)
         if: github.event.inputs.fixed != 'true'
-        uses: Droplr/actions-schedule@v2.1.0
+        uses: irongut/actions-schedule@v1 # <-- Исправлено название action
         with:
           workflow: delete_image.yml
           workflow-repository: ${{ github.repository }}
           args: ${{ steps.upload_path.outputs.path }}/${{ steps.check_existing.outputs.final_filename }}
-          datetime: '+2d'
+          datetime: 'in 2 days'
