@@ -1,0 +1,13 @@
+name = "RooniCraft"
+author = "YouRooni"
+version = "2.0-beta3"
+pack-format = "packwiz:1.1.0"
+
+[index]
+file = "index.toml"
+hash-format = "sha256"
+hash = "bf914c4f626a5bf5bb5625d0a9b4109006f1b65a9a28dd440dce1fcac55e32e0"
+
+[versions]
+fabric = "0.18.4"
+minecraft = "1.20.1"
